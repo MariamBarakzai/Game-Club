@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Club – Spielekonsole</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --card: #16161f;
+    --border: #2a2a3a;
+    --accent1: #ff3e6c;
+    --accent2: #00f5a0;
+    --accent3: #ffb300;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* Pixel grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,62,108,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,62,108,0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  header {
+    padding: 48px 0 32px;
+    text-align: center;
+    position: relative;
+  }
+
+  .logo-pixel {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 28px;
+    color: var(--accent1);
+    text-shadow: 4px 4px 0px #7a0028, 0 0 40px rgba(255,62,108,0.4);
+    letter-spacing: 2px;
+    line-height: 1.4;
+    display: block;
+    animation: flicker 4s infinite;
+  }
+
+  @keyframes flicker {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0.8; }
+    97% { opacity: 1; }
+    98% { opacity: 0.6; }
+    99% { opacity: 1; }
+  }
+
+  .tagline {
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-top: 12px;
+  }
+
+  .team-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 8px 20px;
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--accent2);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .team-badge::before, .team-badge::after {
+    content: '◆';
+    font-size: 8px;
+    opacity: 0.5;
+  }
+
+  /* SERIAL PANEL */
+  .serial-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    padding: 20px 24px;
+    margin: 32px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .serial-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #333;
+    flex-shrink: 0;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .dot.connected {
+    background: var(--accent2);
+    box-shadow: 0 0 12px var(--accent2);
+    animation: pulse-dot 2s infinite;
+  }
+
+  .dot.error {
+    background: var(--accent1);
+    box-shadow: 0 0 12px var(--accent1);
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .status-label {
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .status-label span {
+    color: var(--text);
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+
+  .btn-connect {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    background: transparent;
+    color: var(--accent2);
+    border: 2px solid var(--accent2);
+    padding: 12px 24px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-connect::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent2);
+    transform: translateX(-100%);
+    transition: transform 0.2s;
+    z-index: -1;
+  }
+
+  .btn-connect:hover::before { transform: translateX(0); }
+  .btn-connect:hover { color: var(--bg); }
+  .btn-connect:active { transform: scale(0.97); }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* GAME CARDS */
+  .games-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  @media (max-width: 640px) {
+    .games-grid { grid-template-columns: 1fr; }
+    .logo-pixel { font-size: 20px; }
+  }
+
+  .game-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 28px 20px 24px;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .game-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-accent, var(--accent1));
+    transition: height 0.2s;
+  }
+
+  .game-card:hover {
+    border-color: var(--card-accent, var(--accent1));
+    transform: translateY(-3px);
+  }
+
+  .game-card:hover::before { height: 3px; }
+
+  .game-card.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .game-card.active-game {
+    border-color: var(--card-accent, var(--accent1));
+    box-shadow: 0 0 20px rgba(255,62,108,0.15);
+  }
+
+  .game-number {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--card-accent, var(--accent1));
+    letter-spacing: 2px;
+  }
+
+  .game-icon {
+    font-size: 36px;
+    line-height: 1;
+    margin: 4px 0;
+    filter: grayscale(20%);
+  }
+
+  .game-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  .game-desc {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+    flex: 1;
+  }
+
+  .btn-play {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    background: var(--card-accent, var(--accent1));
+    color: var(--bg);
+    border: none;
+    padding: 12px 0;
+    width: 100%;
+    cursor: pointer;
+    letter-spacing: 1px;
+    margin-top: 8px;
+    transition: opacity 0.2s, transform 0.15s;
+    text-transform: uppercase;
+  }
+
+  .btn-play:hover { opacity: 0.85; }
+  .btn-play:active { transform: scale(0.98); }
+  .btn-play:disabled {
+    background: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  /* CONSOLE DISPLAY */
+  .console-display {
+    background: #050508;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent3);
+    padding: 20px 24px;
+    margin-bottom: 48px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    line-height: 2.2;
+    min-height: 80px;
+    position: relative;
+  }
+
+  .console-display::before {
+    content: 'SERIAL MONITOR';
+    position: absolute;
+    top: -11px;
+    left: 16px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 8px;
+    color: var(--accent3);
+    letter-spacing: 2px;
+  }
+
+  .console-line {
+    color: var(--accent2);
+    animation: fadeIn 0.3s ease;
+  }
+
+  .console-line.error { color: var(--accent1); }
+  .console-line.info { color: var(--accent3); }
+  .console-line.muted { color: var(--muted); }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--accent2);
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* LED MATRIX PREVIEW */
+  .matrix-section {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 32px;
+    align-items: start;
+    margin-bottom: 48px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 640px) {
+    .matrix-section { grid-template-columns: 1fr; }
+  }
+
+  .led-matrix {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 3px;
+    padding: 12px;
+    background: #080808;
+    border: 1px solid var(--border);
+  }
+
+  .led {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #1a0008;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+
+  .led.on {
+    background: var(--accent1);
+    box-shadow: 0 0 6px var(--accent1), 0 0 12px rgba(255,62,108,0.3);
+  }
+
+  .led.dim {
+    background: #3a0018;
+  }
+
+  .matrix-info {
+    padding: 8px 0;
+  }
+
+  .matrix-info h3 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--accent1);
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+
+  .matrix-info p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.8;
+    margin-bottom: 8px;
+  }
+
+  .hw-tag {
+    display: inline-block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--accent3);
+    letter-spacing: 1px;
+    margin: 4px 4px 4px 0;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  footer strong {
+    color: var(--accent1);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <span class="logo-pixel">GAME CLUB</span>
+    <p class="tagline">Arduino Spielekonsole · MAX7219 LED Matrix</p>
+    <div class="team-badge">Mariam Barakzai &amp; Maryam Akbari · 2026/2027</div>
+  </header>
+
+  <!-- Serial Connection Panel -->
+  <div class="serial-panel">
+    <div class="serial-status">
+      <div class="dot" id="statusDot"></div>
+      <div class="status-label">
+        Arduino Verbindung
+        <span id="statusText">Nicht verbunden</span>
+      </div>
+    </div>
+    <button class="btn-connect" id="connectBtn" onclick="connectSerial()">
+      ▶ Verbinden
+    </button>
+  </div>
+
+  <!-- Game Selection -->
+  <div class="section-title">Spiel auswählen</div>
+
+  <div class="games-grid">
+    <!-- Stacker -->
+    <div class="game-card" style="--card-accent: #ff3e6c;" id="card1">
+      <div class="game-number">// SPIEL 01</div>
+      <div class="game-icon">🏗️</div>
+      <div class="game-name">STACKER</div>
+      <div class="game-desc">Stapel die Blöcke perfekt übereinander. Drücke den Button im richtigen Moment!</div>
+      <button class="btn-play" onclick="startGame(1)" id="btn1" disabled>▶ SPIELEN</button>
+    </div>
+
+    <!-- Catcher -->
+    <div class="game-card" style="--card-accent: #00f5a0;" id="card2">
+      <div class="game-number">// SPIEL 02</div>
+      <div class="game-icon">🎯</div>
+      <div class="game-name">CATCHER</div>
+      <div class="game-desc">Fange die fallenden Objekte mit deinem Schläger. Lass keines durchfallen!</div>
+      <button class="btn-play" style="background: #00f5a0;" onclick="startGame(2)" id="btn2" disabled>▶ SPIELEN</button>
+    </div>
+
+    <!-- Dodge -->
+    <div class="game-card" style="--card-accent: #ffb300;" id="card3">
+      <div class="game-number">// SPIEL 03</div>
+      <div class="game-icon">⚡</div>
+      <div class="game-name">DODGE</div>
+      <div class="game-desc">Weiche den Wänden aus! Finde die Lücke und überlebele so lange wie möglich.</div>
+      <button class="btn-play" style="background: #ffb300;" onclick="startGame(3)" id="btn3" disabled>▶ SPIELEN</button>
+    </div>
+  </div>
+
+  <!-- Serial Console -->
+  <div class="console-display" id="console">
+    <div class="console-line muted">> GAME CLUB v1.0 – Bereit</div>
+    <div class="console-line muted">> Arduino verbinden um Spiele zu starten...</div>
+    <span class="cursor"></span>
+  </div>
+
+  <!-- LED Matrix Preview + Hardware Info -->
+  <div class="section-title">Hardware</div>
+
+  <div class="matrix-section">
+    <div>
+      <div class="led-matrix" id="ledMatrix"></div>
+    </div>
+    <div class="matrix-info">
+      <h3>MAX7219 · 8×8 LED Matrix</h3>
+      <p>Alle drei Spiele laufen auf dieser 8×8 LED-Matrix. Der Button steuert die Bewegung — ein Klick zum Spielen, langer Druck zum Spielwechsel.</p>
+      <p style="margin-top:16px; color: #555; font-size:12px; letter-spacing:1px; text-transform:uppercase;">Komponenten</p>
+      <div style="margin-top:8px;">
+        <span class="hw-tag">Grove Beginner Kit</span>
+        <span class="hw-tag">MAX7219</span>
+        <span class="hw-tag">OLED Display</span>
+        <span class="hw-tag">Buzzer</span>
+        <span class="hw-tag">Button</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="container">
+    <strong>GAME CLUB</strong><br>
+    <span style="margin-top:8px; display:block;">Schuljahr 2026/2027 · Arduino IDE · C/C++</span>
+  </div>
+</footer>
+
+<script>
+let port = null;
+let writer = null;
+let activeGame = null;
+
+const GAMES = {
+  1: { cmd: '1', name: 'STACKER' },
+  2: { cmd: '2', name: 'CATCHER' },
+  3: { cmd: '3', name: 'DODGE' }
+};
+
+// Build LED matrix
+function buildMatrix() {
+  const matrix = document.getElementById('ledMatrix');
+  for (let i = 0; i < 64; i++) {
+    const led = document.createElement('div');
+    led.className = 'led';
+    led.id = 'led' + i;
+    matrix.appendChild(led);
+  }
+  animateMatrix();
+}
+
+// Animate matrix with random pixels
+function animateMatrix() {
+  setInterval(() => {
+    const leds = document.querySelectorAll('.led');
+    leds.forEach(led => {
+      const r = Math.random();
+      led.className = 'led' + (r > 0.85 ? ' on' : r > 0.7 ? ' dim' : '');
+    });
+  }, 400);
+}
+
+function log(msg, type = '') {
+  const c = document.getElementById('console');
+  const cursor = c.querySelector('.cursor');
+  const line = document.createElement('div');
+  line.className = 'console-line' + (type ? ' ' + type : '');
+  line.textContent = '> ' + msg;
+  c.insertBefore(line, cursor);
+  // Keep only last 6 lines
+  const lines = c.querySelectorAll('.console-line');
+  if (lines.length > 6) lines[0].remove();
+}
+
+async function connectSerial() {
+  if (!('serial' in navigator)) {
+    log('Web Serial nicht unterstützt. Bitte Chrome verwenden!', 'error');
+    return;
+  }
+
+  if (port) {
+    await disconnectSerial();
+    return;
+  }
+
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 9600 });
+
+    writer = port.writable.getWriter();
+
+    document.getElementById('statusDot').classList.add('connected');
+    document.getElementById('statusText').textContent = 'Verbunden ✓';
+    document.getElementById('connectBtn').textContent = '■ Trennen';
+
+    ['btn1','btn2','btn3'].forEach(id => {
+      document.getElementById(id).disabled = false;
+    });
+
+    log('Arduino verbunden!', '');
+    log('Wähle ein Spiel aus...', 'info');
+
+    readSerial();
+  } catch (e) {
+    log('Verbindung fehlgeschlagen: ' + e.message, 'error');
+    document.getElementById('statusDot').classList.add('error');
+    port = null;
+  }
+}
+
+async function disconnectSerial() {
+  if (writer) { writer.releaseLock(); writer = null; }
+  if (port) { await port.close(); port = null; }
+
+  document.getElementById('statusDot').className = 'dot';
+  document.getElementById('statusText').textContent = 'Nicht verbunden';
+  document.getElementById('connectBtn').textContent = '▶ Verbinden';
+
+  ['btn1','btn2','btn3'].forEach(id => {
+    document.getElementById(id).disabled = true;
+  });
+
+  log('Arduino getrennt.', 'muted');
+}
+
+async function readSerial() {
+  const decoder = new TextDecoderStream();
+  port.readable.pipeTo(decoder.writable).catch(() => {});
+  const reader = decoder.readable.getReader();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed) log(trimmed, 'info');
+      });
+    }
+  } catch (e) { /* port closed */ }
+}
+
+async function startGame(num) {
+  if (!port || !writer) {
+    log('Bitte zuerst Arduino verbinden!', 'error');
+    return;
+  }
+
+  const game = GAMES[num];
+
+  // Remove active from all cards
+  document.querySelectorAll('.game-card').forEach(c => c.classList.remove('active-game'));
+  document.getElementById('card' + num).classList.add('active-game');
+
+  activeGame = num;
+  log('Starte ' + game.name + '...', '');
+
+  try {
+    const encoded = new TextEncoder().encode(game.cmd + '\n');
+    await writer.write(encoded);
+    log(game.name + ' läuft auf der LED-Matrix!', 'info');
+  } catch (e) {
+    log('Fehler: ' + e.message, 'error');
+  }
+}
+
+buildMatrix();
+</script>
+</body>
+</html>
